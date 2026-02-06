@@ -87,19 +87,69 @@
             transform: scaleX(-1); /* Mirror local view only */
         }
 
-        button {
-            margin-top: 20px;
-            padding: 12px 24px;
+        /* Call Action Controls (Bottom Bar) */
+        .call-controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: #333;
+            border: 2px solid #444;
+            color: white;
+            width: 55px;
+            height: 55px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: #444;
+            border-color: #3498db;
+        }
+
+        .icon-btn.off {
+            background: #e74c3c;
+            border-color: #c0392b;
+        }
+
+        .end-call-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.3s;
+        }
+
+        .end-call-btn:hover { 
+            background: #c0392b; 
+        }
+
+        /* Standard Start Button Styling */
+        #startBtn {
+            padding: 15px 40px;
             background: #3498db;
             border: none;
             color: white;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
-            transition: background 0.3s;
+            font-size: 18px;
         }
-        button:hover { background: #2980b9; }
-        button:disabled { background: #555; cursor: not-allowed; }
+
+        #startBtn:hover { background: #2980b9; }
+        #startBtn:disabled { background: #555; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -110,7 +160,7 @@
     </div>
     
     <div class="controls">
-        <input type="text" id="roomInput" placeholder="Enter Room Name (e.g. 'home')">
+        <input type="text" id="roomInput" placeholder="Enter Room Name">
         
         <select id="cameraSelect">
             <option value="">Detecting Cameras...</option>
@@ -131,7 +181,14 @@
         </div>
     </div>
 
-    <button id="startBtn">Join Call</button>
+    <div class="call-controls">
+        <button id="toggleCam" class="icon-btn" title="Toggle Camera">📷</button>
+        
+        <button id="startBtn">Join Call</button>
+        <button id="endCallBtn" class="end-call-btn" style="display:none;">End Call</button>
+        
+        <button id="toggleMic" class="icon-btn" title="Toggle Microphone">🎤</button>
+    </div>
 
     <script src="renderer.js"></script>
 </body>

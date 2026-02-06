@@ -1,9 +1,14 @@
 const { io } = require('socket.io-client');
-const socket = io('http://localhost:3000'); // Remember to change to IP for 2-PC test
+// REPLACE with your server PC's Local IP
+const socket = io('http://192.168.13.205:3000'); 
 
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const startBtn = document.getElementById('startBtn');
+const endCallBtn = document.getElementById('endCallBtn');
+const toggleCamBtn = document.getElementById('toggleCam');
+const toggleMicBtn = document.getElementById('toggleMic');
+const roomInput = document.getElementById('roomInput');
 const cameraSelect = document.getElementById('cameraSelect');
 const micSelect = document.getElementById('micSelect');
 const statusText = document.getElementById('statusText');
@@ -11,7 +16,6 @@ const statusText = document.getElementById('statusText');
 let localStream;
 let peerConnection;
 
-// Standard Google STUN servers help find the public IP address
 const configuration = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
@@ -21,21 +25,22 @@ const configuration = {
 async function createPeerConnection() {
     peerConnection = new RTCPeerConnection(configuration);
 
-    // 1. Add our local video/audio tracks to the connection
     localStream.getTracks().forEach(track => {
         peerConnection.addTrack(track, localStream);
     });
 
-    // 2. Listen for the remote stream to arrive
     peerConnection.ontrack = (event) => {
         console.log("Remote stream received!");
         remoteVideo.srcObject = event.streams[0];
     };
 
-    // 3. Listen for ICE Candidates (network path info)
     peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-            socket.emit('signal', { type: 'candidate', candidate: event.candidate });
+            socket.emit('signal', { 
+                type: 'candidate', 
+                candidate: event.candidate,
+                room: roomInput.value 
+            });
         }
     };
 }
@@ -43,12 +48,15 @@ async function createPeerConnection() {
 // --- SIGNALING RECEIVER ---
 
 socket.on('signal', async (data) => {
+    // Only process signals for our specific room
+    if (data.room !== roomInput.value) return;
+
     if (data.type === 'offer') {
         await createPeerConnection();
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
-        socket.emit('signal', { type: 'answer', answer: answer });
+        socket.emit('signal', { type: 'answer', answer: answer, room: roomInput.value });
     } 
     else if (data.type === 'answer') {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -85,6 +93,8 @@ async function getDevices() {
 }
 
 async function startCall() {
+    if (!roomInput.value) return alert("Please enter a room name first!");
+
     const constraints = {
         video: { deviceId: cameraSelect.value ? { exact: cameraSelect.value } : undefined },
         audio: { deviceId: micSelect.value ? { exact: micSelect.value } : undefined }
@@ -94,16 +104,60 @@ async function startCall() {
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         localVideo.srcObject = localStream;
         
-        // After getting the camera, create the offer
         await createPeerConnection();
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        socket.emit('signal', { type: 'offer', offer: offer });
+        socket.emit('signal', { type: 'offer', offer: offer, room: roomInput.value });
         
-        startBtn.innerText = "In Call";
-        startBtn.disabled = true;
+        // UI Updates
+        startBtn.style.display = "none";
+        endCallBtn.style.display = "block";
     } catch (error) { console.error(error); }
 }
+
+// End the Call and clean up resources
+function endCall() {
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+    remoteVideo.srcObject = null;
+    localVideo.srcObject = null;
+    
+    // UI Reset
+    startBtn.style.display = "block";
+    endCallBtn.style.display = "none";
+    startBtn.disabled = false;
+    
+    // Reset toggle button states
+    toggleCamBtn.classList.remove('off');
+    toggleCamBtn.innerText = "📷";
+    toggleMicBtn.classList.remove('off');
+    toggleMicBtn.innerText = "🎤";
+}
+
+// Toggle Video Track
+toggleCamBtn.addEventListener('click', () => {
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        toggleCamBtn.classList.toggle('off', !videoTrack.enabled);
+        toggleCamBtn.innerText = videoTrack.enabled ? "📷" : "🚫";
+    }
+});
+
+// Toggle Audio Track
+toggleMicBtn.addEventListener('click', () => {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        toggleMicBtn.classList.toggle('off', !audioTrack.enabled);
+        toggleMicBtn.innerText = audioTrack.enabled ? "🎤" : "🔇";
+    }
+});
 
 socket.on('connect', () => {
     statusText.innerText = "Connected";
@@ -112,3 +166,4 @@ socket.on('connect', () => {
 
 getDevices();
 startBtn.addEventListener('click', startCall);
+endCallBtn.addEventListener('click', endCall);
