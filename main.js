@@ -6,24 +6,31 @@ function createWindow() {
     width: 900,
     height: 700,
     webPreferences: {
-      // This allows us to use 'require' and other Node features in our UI
+      // These two lines fix the "require is not defined" error in your renderer.js
       nodeIntegration: true, 
       contextIsolation: false 
     },
   });
 
   win.loadFile('index.html');
+  
+  // Optional: Uncomment this to see the console errors while debugging
+  // win.webContents.openDevTools();
 }
 
 app.whenReady().then(() => {
   // 1. Setup permissions for camera and microphone access
-  session.defaultSession.setPermissionCheckHandler((webapp, permission) => {
-    if (permission === 'media') return true;
+  // Electron groups webcam, mic, and screen recording under the 'media' permission
+  
+  // Synchronous permission check
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    if (permission === 'media') return true; //
     return true; 
   });
 
-  session.defaultSession.setPermissionRequestHandler((webapp, permission, callback) => {
-    if (permission === 'media') return callback(true);
+  // Asynchronous permission request handler
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'media') return callback(true); // Approves media access
     callback(true);
   });
 
